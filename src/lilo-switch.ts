@@ -3,13 +3,13 @@ import Lilo, {INTENSITY_OFF, INTENSITY_SCHEDULED, Schedule, Time} from "./lilo";
 const ON: Schedule = [0, 0, 23, 59]
 
 export default class LiloSwitch extends Lilo {
-  async getOnValue(): Promise<boolean | null> {
+  async getOnValue(): Promise<boolean> {
     const intensity = await this.getIntensity()
     if (intensity === 0) return false
     const time = await this.getTime()
-    if (!time) return null
+    if (!time) return false
     const schedule = await this.getSchedule()
-    if (!schedule) return null
+    if (!schedule) return false
     const on = schedule[0] * 60 + schedule[1]
     const off = schedule[2] * 60 + schedule[3]
     const now = time[0] * 60 + time[1]
