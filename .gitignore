@@ -123,3 +123,5 @@ dist
 /config.json
 /accessories/
 /local/
+/.uix-*
+/auth.json
