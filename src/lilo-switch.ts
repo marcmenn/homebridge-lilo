@@ -1,4 +1,6 @@
-import Lilo, {INTENSITY_OFF, INTENSITY_SCHEDULED, Schedule, Time} from "./lilo";
+import Lilo, {
+  INTENSITY_OFF, INTENSITY_SCHEDULED, Schedule, Time,
+} from './lilo.js'
 
 const ON: Schedule = [0, 0, 23, 59]
 

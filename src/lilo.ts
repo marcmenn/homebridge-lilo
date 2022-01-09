@@ -1,5 +1,5 @@
-import {Characteristic, Peripheral} from '@abandonware/noble'
-import BasePeripheral from "./base-peripheral";
+import { Characteristic, Peripheral } from '@abandonware/noble'
+import BasePeripheral from './base-peripheral.js'
 
 export const INTENSITY_INITIAL = -2
 export const INTENSITY_OFF = 0
@@ -20,13 +20,13 @@ export type Schedule = [number, number, number, number]
 
 export const formatSchedule = (schedule: Schedule | unknown): string => {
   if (!Array.isArray(schedule)) return 'N/A'
-  const [h0, m0, h1, m1] = schedule.map((v) => v < 10 ? `0${v}` : `${v}`)
+  const [h0, m0, h1, m1] = schedule.map((v) => (v < 10 ? `0${v}` : `${v}`))
   return `${h0}:${m0} - ${h1}:${m1}`
 }
 
 export const formatTime = (time: Time | unknown): string => {
   if (!Array.isArray(time)) return 'N/A'
-  const [h, m] = time.map((v) => v < 10 ? `0${v}` : `${v}`)
+  const [h, m] = time.map((v) => (v < 10 ? `0${v}` : `${v}`))
   return `${h}:${m}`
 }
 
@@ -34,15 +34,15 @@ const ADVERTISEMENT_LOCALNAME = 'LILO'
 
 export default class Lilo extends BasePeripheral {
   static is(peripheral: Peripheral): boolean {
-    return peripheral.advertisement.localName === ADVERTISEMENT_LOCALNAME;
+    return peripheral.advertisement.localName === ADVERTISEMENT_LOCALNAME
   }
 
   async getIntensity(): Promise<number | null | undefined> {
-    return await this.withConnectedCharacteristic(CHARACTERISTIC_INTENSITY, async (intensity: Characteristic) => {
+    return this.withConnectedCharacteristic(CHARACTERISTIC_INTENSITY, async (intensity: Characteristic) => {
       if (!intensity) return undefined
       const b = await intensity.readAsync()
       if (b.length !== 1) {
-        this.log.warn(`Read illegal intensity from LILO`, b)
+        this.log.warn('Read illegal intensity from LILO', b)
         return null
       }
       return b.readInt8()
@@ -50,7 +50,7 @@ export default class Lilo extends BasePeripheral {
   }
 
   async setIntensity(intensity: number): Promise<void> {
-    return await this.withConnectedCharacteristic(CHARACTERISTIC_INTENSITY, async (characteristic: Characteristic) => {
+    return this.withConnectedCharacteristic(CHARACTERISTIC_INTENSITY, async (characteristic: Characteristic) => {
       const b = Buffer.alloc(1)
       b.writeInt8(intensity)
       await characteristic.writeAsync(b, true)
@@ -59,20 +59,20 @@ export default class Lilo extends BasePeripheral {
   }
 
   async getSchedule(): Promise<Schedule | null | undefined> {
-    return await this.withConnectedCharacteristic(CHARACTERISTIC_SCHEDULE, async (schedule: Characteristic) => {
+    return this.withConnectedCharacteristic(CHARACTERISTIC_SCHEDULE, async (schedule: Characteristic) => {
       if (!schedule) return undefined
       const b = await schedule.readAsync()
       if (Buffer.compare(SCHEDULE_EMPTY, b) === 0) return null
       if (b.length !== 4) {
-        this.log.warn(`Read illegal schedule from LILO`, b)
+        this.log.warn('Read illegal schedule from LILO', b)
         return null
       }
       return [b[0], b[1], b[2], b[3]]
     })
   }
 
-  async setSchedule(newSchedule: Schedule|null): Promise<void> {
-    return await this.withConnectedCharacteristic(CHARACTERISTIC_SCHEDULE, async (schedule: Characteristic) => {
+  async setSchedule(newSchedule: Schedule | null): Promise<void> {
+    return this.withConnectedCharacteristic(CHARACTERISTIC_SCHEDULE, async (schedule: Characteristic) => {
       if (newSchedule) {
         const b = Buffer.alloc(4)
         b.writeUInt8(newSchedule[0], 0)
@@ -88,12 +88,12 @@ export default class Lilo extends BasePeripheral {
   }
 
   async getTime(): Promise<Time | null | undefined> {
-    return await this.withConnectedCharacteristic(CHARACTERISTIC_CLOCK, async (clock: Characteristic) => {
+    return this.withConnectedCharacteristic(CHARACTERISTIC_CLOCK, async (clock: Characteristic) => {
       if (!clock) return undefined
       const b = await clock.readAsync()
       if (Buffer.compare(CLOCK_INITIAL, b) === 0) return null
       if (b.length !== 2) {
-        this.log.warn(`Read illegal clock from LILO`, b)
+        this.log.warn('Read illegal clock from LILO', b)
         return null
       }
       return [b[0], b[1]]
@@ -101,7 +101,7 @@ export default class Lilo extends BasePeripheral {
   }
 
   async setTime(time: Time): Promise<void> {
-    return await this.withConnectedCharacteristic(CHARACTERISTIC_CLOCK, async (clock: Characteristic) => {
+    return this.withConnectedCharacteristic(CHARACTERISTIC_CLOCK, async (clock: Characteristic) => {
       if (!clock) throw new Error('No characteristic for clock found')
       const b = Buffer.alloc(2)
       b.writeUInt8(time[0], 0)
