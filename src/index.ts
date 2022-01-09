@@ -1,12 +1,8 @@
-import noble, { Peripheral } from '@abandonware/noble'
 import type { API, PlatformAccessory, PlatformConfig } from 'homebridge'
 import { HAPStatus, Logger } from 'homebridge'
 import { DynamicPlatformPlugin } from 'homebridge/lib/api'
+import bleAdapterFactory, { BLEAdapter } from './noble-adapter.js'
 import LiloSwitch from './lilo-switch.js'
-import Lilo from './lilo.js'
-import Timeout = NodeJS.Timeout
-
-const SCAN_DURATION = 5 * 60000
 
 class LILOPlatform implements DynamicPlatformPlugin {
   private accessories: PlatformAccessory[] = []
@@ -15,24 +11,19 @@ class LILOPlatform implements DynamicPlatformPlugin {
 
   private readonly api: API
 
-  private nobleScanPending = true
-
-  private nobleScanning: null | Timeout = null
+  private readonly bleAdapter: BLEAdapter
 
   constructor(log: Logger, config: PlatformConfig, api: API) {
     this.log = log
     this.api = api
+    this.bleAdapter = bleAdapterFactory((lilo) => this.addLILO(lilo))
 
     api.on('didFinishLaunching', () => {
-      noble.on('stateChange', (state: string) => this.nobleStateChange(state))
-      noble.on('discover', (peripheral: Peripheral) => this.nobleDiscover(peripheral))
-      if (noble.state === 'unknown') {
-        this.log.warn('BLE is in unknown state')
-      } else {
-        this.nobleStateChange(noble.state)
-      }
+      this.bleAdapter.init()
       api.on('shutdown', () => {
-        this.nobleStopScan()
+        this.bleAdapter.shutdown().catch((e) => {
+          log.warn(e)
+        })
       })
     })
   }
@@ -70,42 +61,6 @@ class LILOPlatform implements DynamicPlatformPlugin {
     updateGet().catch(() => {
       onCharacteristic.updateValue(new HapStatusError(HAPStatus.SERVICE_COMMUNICATION_FAILURE))
     })
-  }
-
-  private nobleStateChange(state: string) {
-    this.log.info('BLE state change to %s', state)
-    if (state === 'poweredOn' && this.nobleScanPending) {
-      this.log.info('Initiating scan')
-      this.nobleScanPending = false
-      this.nobleScanning = setTimeout(() => {
-        this.nobleStopScan()
-      }, SCAN_DURATION)
-      noble.startScanning([], false, (error) => {
-        if (error) {
-          if (this.nobleScanning) {
-            clearTimeout(this.nobleScanning)
-            this.nobleScanning = null
-          }
-          this.log.warn('Error initiating scan: %s', error)
-        }
-      })
-    }
-  }
-
-  private nobleStopScan() {
-    if (this.nobleScanning) {
-      this.log.info('stop scanning')
-      clearTimeout(this.nobleScanning)
-      this.nobleScanning = null
-      noble.stopScanning()
-    }
-  }
-
-  private nobleDiscover(peripheral: Peripheral) {
-    if (Lilo.is(peripheral)) {
-      this.log.info('Found', peripheral.advertisement)
-      this.addLILO(new LiloSwitch(peripheral))
-    }
   }
 
   addLILO(lilo: LiloSwitch): void {

@@ -22,10 +22,12 @@
   "author": "Marcus Mennemeier",
   "license": "ISC",
   "dependencies": {
-    "@abandonware/noble": "^1.9.2-13"
+    "@abandonware/noble": "^1.9.2-13",
+    "debug": "^4.3.3"
   },
   "devDependencies": {
     "@tsconfig/node16": "^1.0.0",
+    "@types/debug": "^4.1.7",
     "@types/node": "^16.11.19",
     "@typescript-eslint/eslint-plugin": "^5.9.0",
     "@typescript-eslint/parser": "^5.9.0",
