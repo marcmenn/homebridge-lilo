@@ -3,6 +3,7 @@
   "version": "0.0.31",
   "description": "Turn LILO Home Gardens into simple homebridge switches",
   "main": "lib/index.js",
+  "type": "module",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "lint": "eslint src --ext .ts",
@@ -15,8 +16,8 @@
     "homebridge-plugin"
   ],
   "engines": {
-    "node": ">= 14",
-    "homebridge": ">= 1.3.1"
+    "node": ">= 16",
+    "homebridge": ">= 1.3.6"
   },
   "author": "Marcus Mennemeier",
   "license": "ISC",
@@ -31,12 +32,12 @@
     "eslint": "^8.6.0",
     "eslint-config-airbnb-base": "^15.0.0",
     "eslint-config-airbnb-typescript": "^16.1.0",
-    "homebridge": "^1.3.4",
+    "homebridge": "^1.3.6",
     "homebridge-config-ui-x": "^4.41.5",
     "typescript": "^4.2.4"
   },
   "peerDependencies": {
-    "homebridge": "^1.3.4"
+    "homebridge": "^1.3.6"
   },
   "files": [
     "lib"

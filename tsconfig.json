@@ -1,7 +1,14 @@
 {
   "compilerOptions": {
     "outDir": "lib",
-    "sourceMap": true
+    "sourceMap": true,
+    "module": "ESNext",
+    "moduleResolution": "node",
+    "types": [
+      "node"
+    ],
+    "esModuleInterop": true,
+    "target": "es2019"
   },
   "extends": "@tsconfig/node16/tsconfig.json",
   "include": ["src/**/*"],
