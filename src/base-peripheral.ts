@@ -5,7 +5,8 @@ import { LiloLogger } from './lilo-logger.js'
 const CHARACTERISTIC_FIRMWARE_REVISION = '2a26'
 const CHARACTERISTIC_MANUFACTURER_NAME = '2a29'
 
-const DISCONNECT_TIMEOUT = 10
+const DISCONNECT_TIMEOUT = 30 * 1000
+const CONNECT_TIMEOUT = 90 * 1000
 
 const discoverCharacteristics = async (peripheral: Peripheral) => {
   const { characteristics } = await peripheral.discoverAllServicesAndCharacteristicsAsync()
@@ -15,7 +16,7 @@ const discoverCharacteristics = async (peripheral: Peripheral) => {
 export default class BasePeripheral {
   protected log: LiloLogger = console
 
-  private readonly queue = new CommandQueue(DISCONNECT_TIMEOUT * 1000, () => this.doConnect(), () => this.disconnect())
+  private readonly queue = new CommandQueue(DISCONNECT_TIMEOUT, () => this.doConnect(), () => this.disconnect())
 
   private _peripheral: Peripheral
 
@@ -38,10 +39,25 @@ export default class BasePeripheral {
   }
 
   private doConnect(): Promise<void> {
+    let timeout: NodeJS.Timeout | null = null
     switch (this._peripheral.state) {
       case 'disconnected':
         this.log.info('connecting to %s', this.id)
-        return this._peripheral.connectAsync()
+        return new Promise((resolve, reject) => {
+          timeout = setTimeout(() => {
+            timeout = null
+            reject(new Error(`Timeout connecting to ${this.id}`))
+            this.log.warn('Timeout connecting to %s', this.id)
+            this._peripheral.cancelConnect()
+          }, CONNECT_TIMEOUT)
+          this._peripheral.connect((error) => {
+            if (timeout) {
+              clearTimeout(timeout)
+              if (error) reject(error)
+              resolve()
+            }
+          })
+        })
       case 'error':
         throw new Error('Peripheral is in error state')
       case 'connecting':
@@ -55,8 +71,7 @@ export default class BasePeripheral {
       case 'disconnecting':
         return new Promise((resolve) => {
           this._peripheral.once('disconnect', () => {
-            this.log.info('reconnecting to %s', this.id)
-            resolve(this._peripheral.connectAsync())
+            resolve(this.doConnect())
           })
         })
       default:
