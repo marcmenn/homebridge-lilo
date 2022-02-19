@@ -59,22 +59,27 @@ export default class BasePeripheral {
           })
         })
       case 'error':
+        this.log.warn('Peripheral is in error state %s', this.id)
         throw new Error('Peripheral is in error state')
       case 'connecting':
+        this.log.info('waiting for connection to %s', this.id)
         return new Promise((resolve) => {
           this._peripheral.once('connect', () => {
             resolve()
           })
         })
       case 'connected':
+        this.log.info('already connected to %s', this.id)
         return Promise.resolve()
       case 'disconnecting':
+        this.log.info('waiting for disconnect to finish before reconnecting to %s', this.id)
         return new Promise((resolve) => {
           this._peripheral.once('disconnect', () => {
             resolve(this.doConnect())
           })
         })
       default:
+        this.log.warn('unknown state of %s: %s', this.id, this._peripheral.state)
         throw new Error(`Unknown peripheral state: ${this._peripheral.state}`)
     }
   }
