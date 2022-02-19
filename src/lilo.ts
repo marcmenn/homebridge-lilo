@@ -38,6 +38,7 @@ export default class Lilo extends BasePeripheral {
   }
 
   async getIntensity(): Promise<number | null | undefined> {
+    this.log.debug('Getting intensity')
     return this.withConnectedCharacteristic(CHARACTERISTIC_INTENSITY, async (intensity: Characteristic) => {
       if (!intensity) return undefined
       const b = await intensity.readAsync()
@@ -50,6 +51,7 @@ export default class Lilo extends BasePeripheral {
   }
 
   async setIntensity(intensity: number): Promise<void> {
+    this.log.debug(`Setting intensity to ${intensity}`)
     return this.withConnectedCharacteristic(CHARACTERISTIC_INTENSITY, async (characteristic: Characteristic) => {
       const b = Buffer.alloc(1)
       b.writeInt8(intensity)
@@ -59,6 +61,7 @@ export default class Lilo extends BasePeripheral {
   }
 
   async getSchedule(): Promise<Schedule | null | undefined> {
+    this.log.debug('Getting schedule')
     return this.withConnectedCharacteristic(CHARACTERISTIC_SCHEDULE, async (schedule: Characteristic) => {
       if (!schedule) return undefined
       const b = await schedule.readAsync()
@@ -72,6 +75,7 @@ export default class Lilo extends BasePeripheral {
   }
 
   async setSchedule(newSchedule: Schedule | null): Promise<void> {
+    this.log.debug(`Setting schedule to ${formatSchedule(newSchedule)}`)
     return this.withConnectedCharacteristic(CHARACTERISTIC_SCHEDULE, async (schedule: Characteristic) => {
       if (newSchedule) {
         const b = Buffer.alloc(4)
@@ -88,6 +92,7 @@ export default class Lilo extends BasePeripheral {
   }
 
   async getTime(): Promise<Time | null | undefined> {
+    this.log.debug('Getting clock time')
     return this.withConnectedCharacteristic(CHARACTERISTIC_CLOCK, async (clock: Characteristic) => {
       if (!clock) return undefined
       const b = await clock.readAsync()
@@ -96,11 +101,14 @@ export default class Lilo extends BasePeripheral {
         this.log.warn('Read illegal clock from LILO', b)
         return null
       }
-      return [b[0], b[1]]
+      const result: Time = [b[0], b[1]]
+      this.log.debug(`Received clock time: ${formatTime(result)}`)
+      return result
     })
   }
 
   async setTime(time: Time): Promise<void> {
+    this.log.debug(`Setting clock to ${formatTime(time)}`)
     return this.withConnectedCharacteristic(CHARACTERISTIC_CLOCK, async (clock: Characteristic) => {
       if (!clock) throw new Error('No characteristic for clock found')
       const b = Buffer.alloc(2)

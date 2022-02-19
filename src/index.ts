@@ -1,8 +1,11 @@
+import Debugger from 'debug'
 import type { API, PlatformAccessory, PlatformConfig } from 'homebridge'
 import { HAPStatus, Logger } from 'homebridge'
 import { DynamicPlatformPlugin } from 'homebridge/lib/api'
 import bleAdapterFactory, { BLEAdapter } from './noble-adapter.js'
 import LiloSwitch from './lilo-switch.js'
+
+const debug = Debugger('LILO')
 
 class LILOPlatform implements DynamicPlatformPlugin {
   private accessories: PlatformAccessory[] = []
@@ -42,23 +45,29 @@ class LILOPlatform implements DynamicPlatformPlugin {
 
     onCharacteristic
       .onSet(async (value) => {
+        debug('Switching to ', Boolean(value))
         await lilo.setOnValue(Boolean(value))
       })
 
     const updateGet = async () => {
+      debug('Getting OnValue')
       const value = await lilo.getOnValue()
+      debug('Got value', value)
       onCharacteristic.updateValue(value)
       const manufacturer = await lilo.getManufacturerName()
       if (manufacturer) {
+        debug('Found manufacturer', manufacturer)
         information.setCharacteristic(Characteristic.Manufacturer, manufacturer)
       }
       const revision = await lilo.getFirmwareRevision()
       if (revision) {
+        debug('Found revision', revision)
         information.setCharacteristic(Characteristic.FirmwareRevision, revision)
       }
     }
 
-    updateGet().catch(() => {
+    updateGet().catch((e) => {
+      debug('Exception getting OnValue', e)
       onCharacteristic.updateValue(new HapStatusError(HAPStatus.SERVICE_COMMUNICATION_FAILURE))
     })
   }
