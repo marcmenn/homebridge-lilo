@@ -1,7 +1,5 @@
 import noble, { Peripheral } from '@abandonware/noble'
 import Debugger from 'debug'
-import LiloSwitch from './lilo-switch.js'
-import Lilo from './lilo.js'
 
 const debug = Debugger('LILO')
 
@@ -10,7 +8,7 @@ export type BLEAdapter = {
   shutdown(): Promise<void>,
 }
 
-export default (addLILO: (lilo: LiloSwitch) => void): BLEAdapter => {
+export default (onDiscover: (peripheral: Peripheral) => void): BLEAdapter => {
   const onStateChange = (state: string) => {
     debug('BLE state change to %s', state)
     if (state === 'poweredOn') {
@@ -20,15 +18,6 @@ export default (addLILO: (lilo: LiloSwitch) => void): BLEAdapter => {
           debug('Error initiating scan: %s', error)
         }
       })
-    }
-  }
-
-  const onDiscover = (peripheral: Peripheral) => {
-    if (Lilo.is(peripheral)) {
-      debug('Found', peripheral.advertisement)
-      addLILO(new LiloSwitch(peripheral))
-    } else {
-      debug('Discovered non LILO', peripheral.advertisement)
     }
   }
 

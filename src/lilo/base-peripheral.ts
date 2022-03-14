@@ -5,72 +5,66 @@ import connect from './connect.js'
 
 const debug = Debugger('LILO.Peripheral')
 
+const SERVICE_DEVICE_INFORMATION = '180a'
 const CHARACTERISTIC_FIRMWARE_REVISION = '2a26'
 const CHARACTERISTIC_MANUFACTURER_NAME = '2a29'
 
 const DISCONNECT_TIMEOUT = 30 * 1000
-
-const discoverCharacteristics = async (peripheral: Peripheral) => {
-  const { characteristics } = await peripheral.discoverAllServicesAndCharacteristicsAsync()
-  return characteristics
-}
 
 export default class BasePeripheral {
   private readonly queue
 
   private readonly _peripheral: Peripheral
 
-  private _characteristics: Promise<Array<Characteristic>> | null = null
-
   constructor(peripheral: Peripheral) {
     this._peripheral = peripheral
+    const { id } = peripheral
     this.queue = new CommandQueue(
       DISCONNECT_TIMEOUT,
-      () => connect(this._peripheral, this.id),
+      () => connect(peripheral, id),
       async () => {
-        if (this._peripheral.state === 'disconnected' || this._peripheral.state === 'disconnecting') return
-        debug('disconnecting from %s', this.id)
-        this._characteristics = null
-        await this._peripheral.disconnectAsync()
+        if (peripheral.state === 'disconnected' || peripheral.state === 'disconnecting') return
+        debug('disconnecting from %s', id)
+        await peripheral.disconnectAsync()
       },
     )
-  }
-
-  get id(): string {
-    return this._peripheral.id
-  }
-
-  get localName(): string {
-    return this._peripheral.advertisement.localName
   }
 
   async disconnect(): Promise<void> {
     await this.queue.close()
   }
 
-  async withConnectedCharacteristic<V>(uuid: string, fn: (characteristic: Characteristic) => Promise<V>): Promise<V> {
-    return this.queue.push(async () => {
-      if (!this._characteristics) {
-        this._characteristics = discoverCharacteristics(this._peripheral)
+  async getCharacteristic(serviceUuid: string, characteristicUuid: string): Promise<Characteristic> {
+    if (this._peripheral.services) {
+      const service = this._peripheral.services.find(({ uuid }) => uuid === serviceUuid)
+      if (service) {
+        const characteristic = service.characteristics.find(({ uuid }) => uuid === characteristicUuid)
+        if (characteristic) {
+          return characteristic
+        }
       }
-      const characteristics = await this._characteristics
-      const characteristic = characteristics.find(({ uuid: id }) => id === uuid)
-      if (!characteristic) throw new Error(`Characteristic ${uuid} not found`)
-      return fn(characteristic)
-    })
+    }
+    const { characteristics } = await this._peripheral.discoverSomeServicesAndCharacteristicsAsync([serviceUuid], [characteristicUuid])
+    const characteristic = characteristics.find(({ uuid: id }) => id === characteristicUuid)
+    if (!characteristic) throw new Error(`Characteristic ${characteristicUuid} not found`)
+    return characteristic
   }
 
-  async getManufacturerName(): Promise<string | undefined> {
-    return this.withConnectedCharacteristic(CHARACTERISTIC_MANUFACTURER_NAME, async (name: Characteristic) => {
-      if (!name) return undefined
+  async execute<V>(fn: () => Promise<V>): Promise<V> {
+    return this.queue.push(fn)
+  }
+
+  async getManufacturerName(): Promise<string> {
+    return this.execute(async () => {
+      const name = await this.getCharacteristic(SERVICE_DEVICE_INFORMATION, CHARACTERISTIC_MANUFACTURER_NAME)
       const b = await name.readAsync()
       return b.toString()
     })
   }
 
-  async getFirmwareRevision(): Promise<string | undefined> {
-    return this.withConnectedCharacteristic(CHARACTERISTIC_FIRMWARE_REVISION, async (revision: Characteristic) => {
-      if (!revision) return undefined
+  async getFirmwareRevision(): Promise<string> {
+    return this.execute(async () => {
+      const revision = await this.getCharacteristic(SERVICE_DEVICE_INFORMATION, CHARACTERISTIC_FIRMWARE_REVISION)
       const b = await revision.readAsync()
       return b.toString()
     })

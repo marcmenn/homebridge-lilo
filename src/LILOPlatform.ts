@@ -1,9 +1,11 @@
+import { Peripheral } from '@abandonware/noble'
 import Debugger from 'debug'
 import {
   API, HAPStatus, Logger, PlatformAccessory, PlatformConfig,
 } from 'homebridge'
 import { DynamicPlatformPlugin } from 'homebridge/lib/api.js'
 import LiloSwitch from './lilo/lilo-switch.js'
+import Lilo from './lilo/lilo.js'
 import bleAdapterFactory, { BLEAdapter } from './lilo/noble-adapter.js'
 
 const debug = Debugger('LILO')
@@ -18,9 +20,19 @@ export default class LILOPlatform implements DynamicPlatformPlugin {
   private readonly bleAdapter: BLEAdapter
 
   constructor(log: Logger, config: PlatformConfig, api: API) {
+    const onDiscover = (peripheral: Peripheral) => {
+      const { advertisement } = peripheral
+      if (Lilo.is(peripheral)) {
+        debug('Found', advertisement)
+        this.addLILO(peripheral)
+      } else {
+        debug('Discovered non LILO', advertisement)
+      }
+    }
+
     this.log = log
     this.api = api
-    this.bleAdapter = bleAdapterFactory((lilo) => this.addLILO(lilo))
+    this.bleAdapter = bleAdapterFactory(onDiscover)
 
     api.on('didFinishLaunching', () => {
       this.bleAdapter.init()
@@ -73,15 +85,17 @@ export default class LILOPlatform implements DynamicPlatformPlugin {
     })
   }
 
-  addLILO(lilo: LiloSwitch): void {
-    const extractAccessory = (id: string): null | PlatformAccessory => {
-      const oldAccessory = this.accessories.findIndex((accessory) => accessory.UUID === id)
+  addLILO(peripheral: Peripheral): void {
+    const { id, advertisement } = peripheral
+    const lilo = new LiloSwitch(peripheral)
+    const extractAccessory = (uuid: string): null | PlatformAccessory => {
+      const oldAccessory = this.accessories.findIndex((accessory) => accessory.UUID === uuid)
       if (oldAccessory < 0) return null
       const [result] = this.accessories.splice(oldAccessory, 1)
       return result
     }
 
-    const uuidAccessory = this.api.hap.uuid.generate(lilo.id)
+    const uuidAccessory = this.api.hap.uuid.generate(id)
 
     const existingAccessory = extractAccessory(uuidAccessory)
     if (existingAccessory) {
@@ -90,9 +104,9 @@ export default class LILOPlatform implements DynamicPlatformPlugin {
       return
     }
 
-    this.log.info('Discovered new %s', lilo.id)
+    this.log.info('Discovered new %s', id)
     const LILOAccessory = this.api.platformAccessory
-    const accessory = new LILOAccessory(lilo.localName, uuidAccessory)
+    const accessory = new LILOAccessory(advertisement.localName, uuidAccessory)
     this.accessories.push(accessory)
     this.connectAccessory(accessory, lilo)
     this.api.registerPlatformAccessories('homebridge-lilo', 'LILO', [accessory])
