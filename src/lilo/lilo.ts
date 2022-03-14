@@ -1,6 +1,6 @@
 import { Peripheral } from '@abandonware/noble'
 import Debugger from 'debug'
-import BasePeripheral from './base-peripheral.js'
+import BasePeripheral from './BasePeripheral.js'
 
 const debug = Debugger('LILO.Garden')
 
@@ -42,7 +42,7 @@ export default class Lilo extends BasePeripheral {
 
   async getIntensity(): Promise<number | null | undefined> {
     debug('Getting intensity')
-    return this.execute(async () => {
+    return this.push(async () => {
       const intensity = await this.getCharacteristic(SERVICE_SETTINGS, CHARACTERISTIC_INTENSITY)
       const b = await intensity.readAsync()
       if (b.length !== 1) {
@@ -55,7 +55,7 @@ export default class Lilo extends BasePeripheral {
 
   async setIntensity(intensity: number): Promise<void> {
     debug(`Setting intensity to ${intensity}`)
-    await this.execute(async () => {
+    await this.push(async () => {
       const characteristic = await this.getCharacteristic(SERVICE_SETTINGS, CHARACTERISTIC_INTENSITY)
       const b = Buffer.alloc(1)
       b.writeInt8(intensity)
@@ -66,7 +66,7 @@ export default class Lilo extends BasePeripheral {
 
   async getSchedule(): Promise<Schedule | null | undefined> {
     debug('Getting schedule')
-    return this.execute(async () => {
+    return this.push(async () => {
       const schedule = await this.getCharacteristic(SERVICE_SETTINGS, CHARACTERISTIC_SCHEDULE)
       const b = await schedule.readAsync()
       if (Buffer.compare(SCHEDULE_EMPTY, b) === 0) return null
@@ -80,7 +80,7 @@ export default class Lilo extends BasePeripheral {
 
   async setSchedule(newSchedule: Schedule | null): Promise<void> {
     debug(`Setting schedule to ${formatSchedule(newSchedule)}`)
-    await this.execute(async () => {
+    await this.push(async () => {
       const schedule = await this.getCharacteristic(SERVICE_SETTINGS, CHARACTERISTIC_SCHEDULE)
       if (newSchedule) {
         const b = Buffer.alloc(4)
@@ -98,7 +98,7 @@ export default class Lilo extends BasePeripheral {
 
   async getTime(): Promise<Time | null | undefined> {
     debug('Getting clock time')
-    return this.execute(async () => {
+    return this.push(async () => {
       const clock = await this.getCharacteristic(SERVICE_CLOCK, CHARACTERISTIC_CLOCK)
       const b = await clock.readAsync()
       if (Buffer.compare(CLOCK_INITIAL, b) === 0) return null
@@ -114,7 +114,7 @@ export default class Lilo extends BasePeripheral {
 
   async setTime(time: Time): Promise<void> {
     debug(`Setting clock to ${formatTime(time)}`)
-    await this.execute(async () => {
+    await this.push(async () => {
       const clock = await this.getCharacteristic(SERVICE_CLOCK, CHARACTERISTIC_CLOCK)
       const b = Buffer.alloc(2)
       b.writeUInt8(time[0], 0)

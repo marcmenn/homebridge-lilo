@@ -1,6 +1,6 @@
 import { Characteristic, Peripheral } from '@abandonware/noble'
 import Debugger from 'debug'
-import CommandQueue from './command-queue.js'
+import CommandQueue from './CommandQueue.js'
 import connect from './connect.js'
 
 const debug = Debugger('LILO.Peripheral')
@@ -11,27 +11,23 @@ const CHARACTERISTIC_MANUFACTURER_NAME = '2a29'
 
 const DISCONNECT_TIMEOUT = 30 * 1000
 
-export default class BasePeripheral {
-  private readonly queue
-
+export default class BasePeripheral extends CommandQueue {
   private readonly _peripheral: Peripheral
 
   constructor(peripheral: Peripheral) {
+    super()
+    this._timeout = DISCONNECT_TIMEOUT
     this._peripheral = peripheral
-    const { id } = peripheral
-    this.queue = new CommandQueue(
-      DISCONNECT_TIMEOUT,
-      () => connect(peripheral, id),
-      async () => {
-        if (peripheral.state === 'disconnected' || peripheral.state === 'disconnecting') return
-        debug('disconnecting from %s', id)
-        await peripheral.disconnectAsync()
-      },
-    )
   }
 
-  async disconnect(): Promise<void> {
-    await this.queue.close()
+  protected async start(): Promise<void> {
+    await connect(this._peripheral, this._peripheral.id)
+  }
+
+  protected async stop(): Promise<void> {
+    if (this._peripheral.state === 'disconnected' || this._peripheral.state === 'disconnecting') return
+    debug('disconnecting from %s', this._peripheral.id)
+    await this._peripheral.disconnectAsync()
   }
 
   async getCharacteristic(serviceUuid: string, characteristicUuid: string): Promise<Characteristic> {
@@ -50,12 +46,8 @@ export default class BasePeripheral {
     return characteristic
   }
 
-  async execute<V>(fn: () => Promise<V>): Promise<V> {
-    return this.queue.push(fn)
-  }
-
   async getManufacturerName(): Promise<string> {
-    return this.execute(async () => {
+    return this.push(async () => {
       const name = await this.getCharacteristic(SERVICE_DEVICE_INFORMATION, CHARACTERISTIC_MANUFACTURER_NAME)
       const b = await name.readAsync()
       return b.toString()
@@ -63,7 +55,7 @@ export default class BasePeripheral {
   }
 
   async getFirmwareRevision(): Promise<string> {
-    return this.execute(async () => {
+    return this.push(async () => {
       const revision = await this.getCharacteristic(SERVICE_DEVICE_INFORMATION, CHARACTERISTIC_FIRMWARE_REVISION)
       const b = await revision.readAsync()
       return b.toString()

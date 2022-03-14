@@ -4,30 +4,24 @@ const debug = Debugger('LILO.QUEUE')
 
 type Command<V> = () => Promise<V>
 
-export default class CommandQueue {
+export default abstract class CommandQueue {
   private count = 0
 
   private _promise: Promise<unknown> = Promise.resolve() // current running promise
 
   private _disconnectTimeoutId: NodeJS.Timeout | null = null
 
-  private _timeout: number
+  protected _timeout = 1000
 
-  private _onStart: () => Promise<void>
+  protected abstract start(): Promise<void>
 
-  private _onStop: () => Promise<void>
-
-  constructor(timeout: number, onStart: () => Promise<void>, onStop: () => Promise<void>) {
-    this._timeout = timeout
-    this._onStart = onStart
-    this._onStop = onStop
-  }
+  protected abstract stop(): Promise<void>
 
   close(): void {
     if (this.count >= 0) {
       this._promise.finally(async () => {
         debug('Closing queue')
-        await this._onStop()
+        await this.stop()
       })
       this.count = -1
     }
@@ -52,7 +46,7 @@ export default class CommandQueue {
           debug('Scheduling queue shutdown')
           this._disconnectTimeoutId = setTimeout(() => {
             this._disconnectTimeoutId = null
-            this._promise = this._onStop().catch((e) => {
+            this._promise = this.stop().catch((e) => {
               debug('Exception stopping queue', e)
             })
           }, this._timeout)
@@ -65,7 +59,7 @@ export default class CommandQueue {
     if (this.count === 0) { // need to start promise chain
       if (this._disconnectTimeoutId === null) {
         debug('Starting queue')
-        this._promise = this.execute(this._promise, this._onStart).catch((e) => {
+        this._promise = this.execute(this._promise, () => this.start()).catch((e) => {
           debug('Exception starting queue', e)
           throw e
         })

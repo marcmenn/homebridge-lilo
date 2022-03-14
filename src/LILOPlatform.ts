@@ -1,8 +1,6 @@
 import { Peripheral } from '@abandonware/noble'
 import Debugger from 'debug'
-import {
-  API, HAPStatus, Logger, PlatformAccessory, PlatformConfig,
-} from 'homebridge'
+import { API, HAPStatus, Logger, PlatformAccessory, PlatformConfig, } from 'homebridge'
 import { DynamicPlatformPlugin } from 'homebridge/lib/api.js'
 import LiloSwitch from './lilo/lilo-switch.js'
 import Lilo from './lilo/lilo.js'
@@ -48,7 +46,9 @@ export default class LILOPlatform implements DynamicPlatformPlugin {
     const {
       HapStatusError, Service, Characteristic,
     } = this.api.hap
-    this.api.on('shutdown', () => lilo.disconnect())
+    this.api.on('shutdown', () => (async function (): Promise<void> {
+      await this.close()
+    })())
 
     const information = accessory.getService(Service.AccessoryInformation) || accessory.addService(Service.AccessoryInformation)
     information.setCharacteristic(Characteristic.Model, 'LILO')
