@@ -74,8 +74,6 @@ export default class LILOPlatform implements DynamicPlatformPlugin {
   }
 
   addLILO(lilo: LiloSwitch): void {
-    lilo.setLogger(this.log)
-
     const extractAccessory = (id: string): null | PlatformAccessory => {
       const oldAccessory = this.accessories.findIndex((accessory) => accessory.UUID === id)
       if (oldAccessory < 0) return null

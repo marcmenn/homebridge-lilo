@@ -1,5 +1,8 @@
 import { Characteristic, Peripheral } from '@abandonware/noble'
+import Debugger from 'debug'
 import BasePeripheral from './base-peripheral.js'
+
+const debug = Debugger('LILO.Garden')
 
 export const INTENSITY_INITIAL = -2
 export const INTENSITY_OFF = 0
@@ -38,12 +41,12 @@ export default class Lilo extends BasePeripheral {
   }
 
   async getIntensity(): Promise<number | null | undefined> {
-    this.log.debug('Getting intensity')
+    debug('Getting intensity')
     return this.withConnectedCharacteristic(CHARACTERISTIC_INTENSITY, async (intensity: Characteristic) => {
       if (!intensity) return undefined
       const b = await intensity.readAsync()
       if (b.length !== 1) {
-        this.log.warn('Read illegal intensity from LILO', b)
+        debug('Read illegal intensity from LILO', b)
         return null
       }
       return b.readInt8()
@@ -51,23 +54,23 @@ export default class Lilo extends BasePeripheral {
   }
 
   async setIntensity(intensity: number): Promise<void> {
-    this.log.debug(`Setting intensity to ${intensity}`)
+    debug(`Setting intensity to ${intensity}`)
     return this.withConnectedCharacteristic(CHARACTERISTIC_INTENSITY, async (characteristic: Characteristic) => {
       const b = Buffer.alloc(1)
       b.writeInt8(intensity)
       await characteristic.writeAsync(b, true)
-      this.log.debug(`Set intensity to ${intensity}`)
+      debug(`Set intensity to ${intensity}`)
     })
   }
 
   async getSchedule(): Promise<Schedule | null | undefined> {
-    this.log.debug('Getting schedule')
+    debug('Getting schedule')
     return this.withConnectedCharacteristic(CHARACTERISTIC_SCHEDULE, async (schedule: Characteristic) => {
       if (!schedule) return undefined
       const b = await schedule.readAsync()
       if (Buffer.compare(SCHEDULE_EMPTY, b) === 0) return null
       if (b.length !== 4) {
-        this.log.warn('Read illegal schedule from LILO', b)
+        debug('Read illegal schedule from LILO', b)
         return null
       }
       return [b[0], b[1], b[2], b[3]]
@@ -75,7 +78,7 @@ export default class Lilo extends BasePeripheral {
   }
 
   async setSchedule(newSchedule: Schedule | null): Promise<void> {
-    this.log.debug(`Setting schedule to ${formatSchedule(newSchedule)}`)
+    debug(`Setting schedule to ${formatSchedule(newSchedule)}`)
     return this.withConnectedCharacteristic(CHARACTERISTIC_SCHEDULE, async (schedule: Characteristic) => {
       if (newSchedule) {
         const b = Buffer.alloc(4)
@@ -87,35 +90,35 @@ export default class Lilo extends BasePeripheral {
       } else {
         await schedule.writeAsync(SCHEDULE_EMPTY, true)
       }
-      this.log.debug(`Set schedule to ${formatSchedule(newSchedule)}`)
+      debug(`Set schedule to ${formatSchedule(newSchedule)}`)
     })
   }
 
   async getTime(): Promise<Time | null | undefined> {
-    this.log.debug('Getting clock time')
+    debug('Getting clock time')
     return this.withConnectedCharacteristic(CHARACTERISTIC_CLOCK, async (clock: Characteristic) => {
       if (!clock) return undefined
       const b = await clock.readAsync()
       if (Buffer.compare(CLOCK_INITIAL, b) === 0) return null
       if (b.length !== 2) {
-        this.log.warn('Read illegal clock from LILO', b)
+        debug('Read illegal clock from LILO', b)
         return null
       }
       const result: Time = [b[0], b[1]]
-      this.log.debug(`Received clock time: ${formatTime(result)}`)
+      debug(`Received clock time: ${formatTime(result)}`)
       return result
     })
   }
 
   async setTime(time: Time): Promise<void> {
-    this.log.debug(`Setting clock to ${formatTime(time)}`)
+    debug(`Setting clock to ${formatTime(time)}`)
     return this.withConnectedCharacteristic(CHARACTERISTIC_CLOCK, async (clock: Characteristic) => {
       if (!clock) throw new Error('No characteristic for clock found')
       const b = Buffer.alloc(2)
       b.writeUInt8(time[0], 0)
       b.writeUInt8(time[1], 1)
       await clock.writeAsync(b, true)
-      this.log.debug(`Set clock to ${formatTime(time)}`)
+      debug(`Set clock to ${formatTime(time)}`)
     })
   }
 }

@@ -1,7 +1,9 @@
 import { Characteristic, Peripheral } from '@abandonware/noble'
+import Debugger from 'debug'
 import CommandQueue from './command-queue.js'
 import connect from './connect.js'
-import { LiloLogger } from './lilo-logger.js'
+
+const debug = Debugger('LILO.Peripheral')
 
 const CHARACTERISTIC_FIRMWARE_REVISION = '2a26'
 const CHARACTERISTIC_MANUFACTURER_NAME = '2a29'
@@ -14,8 +16,6 @@ const discoverCharacteristics = async (peripheral: Peripheral) => {
 }
 
 export default class BasePeripheral {
-  protected log: LiloLogger = console
-
   private readonly queue
 
   private readonly _peripheral: Peripheral
@@ -26,18 +26,14 @@ export default class BasePeripheral {
     this._peripheral = peripheral
     this.queue = new CommandQueue(
       DISCONNECT_TIMEOUT,
-      () => connect(this._peripheral, this.id, this.log),
+      () => connect(this._peripheral, this.id),
       async () => {
         if (this._peripheral.state === 'disconnected' || this._peripheral.state === 'disconnecting') return
-        this.log.info('disconnecting from %s', this.id)
+        debug('disconnecting from %s', this.id)
         this._characteristics = null
         await this._peripheral.disconnectAsync()
       },
     )
-  }
-
-  setLogger(log: LiloLogger): void {
-    this.log = log
   }
 
   get id(): string {
