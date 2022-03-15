@@ -1,10 +1,12 @@
 import { Peripheral } from '@abandonware/noble'
 import Debugger from 'debug'
-import { API, HAPStatus, Logger, PlatformAccessory, PlatformConfig, } from 'homebridge'
+import {
+  API, HAPStatus, Logger, PlatformAccessory, PlatformConfig,
+} from 'homebridge'
 import { DynamicPlatformPlugin } from 'homebridge/lib/api.js'
-import LiloSwitch from './lilo/lilo-switch.js'
-import Lilo from './lilo/lilo.js'
-import bleAdapterFactory, { BLEAdapter } from './lilo/noble-adapter.js'
+import getOnValue from './getOnValue.js'
+import Lilo from './lilo/Lilo.js'
+import setOnValue from './setOnValue.js'
 
 const debug = Debugger('LILO')
 
@@ -14,8 +16,6 @@ export default class LILOPlatform implements DynamicPlatformPlugin {
   private readonly log: Logger
 
   private readonly api: API
-
-  private readonly bleAdapter: BLEAdapter
 
   constructor(log: Logger, config: PlatformConfig, api: API) {
     const onDiscover = (peripheral: Peripheral) => {
@@ -30,25 +30,22 @@ export default class LILOPlatform implements DynamicPlatformPlugin {
 
     this.log = log
     this.api = api
-    this.bleAdapter = bleAdapterFactory(onDiscover)
 
     api.on('didFinishLaunching', () => {
-      this.bleAdapter.init()
+      const shutdown = Lilo.startDiscovery(onDiscover)
       api.on('shutdown', () => {
-        this.bleAdapter.shutdown().catch((e) => {
+        shutdown().catch((e) => {
           log.warn(e)
         })
       })
     })
   }
 
-  private connectAccessory(accessory: PlatformAccessory, lilo: LiloSwitch) {
+  private connectAccessory(accessory: PlatformAccessory, lilo: Lilo) {
     const {
       HapStatusError, Service, Characteristic,
     } = this.api.hap
-    this.api.on('shutdown', () => (async function (): Promise<void> {
-      await this.close()
-    })())
+    this.api.on('shutdown', () => lilo.close())
 
     const information = accessory.getService(Service.AccessoryInformation) || accessory.addService(Service.AccessoryInformation)
     information.setCharacteristic(Characteristic.Model, 'LILO')
@@ -59,12 +56,12 @@ export default class LILOPlatform implements DynamicPlatformPlugin {
     onCharacteristic
       .onSet(async (value) => {
         debug('Switching to ', Boolean(value))
-        await lilo.setOnValue(Boolean(value))
+        await setOnValue(lilo, Boolean(value))
       })
 
     const updateGet = async () => {
       debug('Getting OnValue')
-      const value = await lilo.getOnValue()
+      const value = await getOnValue(lilo)
       debug('Got value', value)
       onCharacteristic.updateValue(value)
       const manufacturer = await lilo.getManufacturerName()
@@ -87,7 +84,7 @@ export default class LILOPlatform implements DynamicPlatformPlugin {
 
   addLILO(peripheral: Peripheral): void {
     const { id, advertisement } = peripheral
-    const lilo = new LiloSwitch(peripheral)
+    const lilo = new Lilo(peripheral)
     const extractAccessory = (uuid: string): null | PlatformAccessory => {
       const oldAccessory = this.accessories.findIndex((accessory) => accessory.UUID === uuid)
       if (oldAccessory < 0) return null

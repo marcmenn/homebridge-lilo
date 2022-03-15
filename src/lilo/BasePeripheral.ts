@@ -1,4 +1,4 @@
-import { Characteristic, Peripheral } from '@abandonware/noble'
+import noble, { Characteristic, Peripheral } from '@abandonware/noble'
 import Debugger from 'debug'
 import CommandQueue from './CommandQueue.js'
 import connect from './connect.js'
@@ -12,6 +12,31 @@ const CHARACTERISTIC_MANUFACTURER_NAME = '2a29'
 const DISCONNECT_TIMEOUT = 30 * 1000
 
 export default class BasePeripheral extends CommandQueue {
+  static startDiscovery(onDiscover: (peripheral: Peripheral) => void): () => Promise<void> {
+    const onStateChange = (state: string) => {
+      debug('BLE state change to %s', state)
+      if (state === 'poweredOn') {
+        debug('Initiating scan')
+        noble.startScanning([], false, (error) => {
+          if (error) {
+            debug('Error initiating scan: %s', error)
+          }
+        })
+      }
+    }
+
+    noble.on('discover', onDiscover)
+    noble.on('stateChange', onStateChange)
+    onStateChange(noble.state)
+
+    return async () => {
+      debug('stop scanning')
+      noble.removeListener('stateChange', onStateChange)
+      noble.removeListener('discover', onDiscover)
+      await noble.stopScanningAsync()
+    }
+  }
+
   private readonly _peripheral: Peripheral
 
   constructor(peripheral: Peripheral) {
