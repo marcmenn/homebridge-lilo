@@ -65,7 +65,7 @@ export default class BasePeripheral extends CommandQueue {
         }
       }
     }
-    const { characteristics } = await this._peripheral.discoverSomeServicesAndCharacteristicsAsync([serviceUuid], [characteristicUuid])
+    const { characteristics } = await this._peripheral.discoverAllServicesAndCharacteristicsAsync()
     const characteristic = characteristics.find(({ uuid: id }) => id === characteristicUuid)
     if (!characteristic) throw new Error(`Characteristic ${characteristicUuid} not found`)
     return characteristic
