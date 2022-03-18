@@ -1,9 +1,9 @@
 import noble, { Characteristic, Peripheral } from '@abandonware/noble'
-import Debugger from 'debug'
+import Debugger from '../debug.js'
 import CommandQueue from './CommandQueue.js'
 import connect from './connect.js'
 
-const debug = Debugger('LILO.Peripheral')
+const debug = Debugger('BasePeripheral')
 
 const SERVICE_DEVICE_INFORMATION = '180a'
 const CHARACTERISTIC_FIRMWARE_REVISION = '2a26'

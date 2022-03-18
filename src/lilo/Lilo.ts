@@ -1,8 +1,8 @@
 import { Peripheral } from '@abandonware/noble'
-import Debugger from 'debug'
+import Debugger from '../debug.js'
 import BasePeripheral from './BasePeripheral.js'
 
-const debug = Debugger('LILO.Garden')
+const debug = Debugger('Lilo')
 
 export const INTENSITY_INITIAL = -2
 export const INTENSITY_OFF = 0

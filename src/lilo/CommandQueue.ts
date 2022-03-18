@@ -1,6 +1,6 @@
-import Debugger from 'debug'
+import Debugger from '../debug.js'
 
-const debug = Debugger('LILO.QUEUE')
+const debug = Debugger('CommandQueue')
 
 type Command<V> = () => Promise<V>
 

@@ -1,7 +1,7 @@
 import { Peripheral } from '@abandonware/noble'
-import Debugger from 'debug'
+import Debugger from '../debug.js'
 
-const debug = Debugger('LILO.CONNECT')
+const debug = Debugger('connect')
 
 const CONNECT_TIMEOUT = 90 * 1000
 

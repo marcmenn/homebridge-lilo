@@ -1,5 +1,5 @@
-import Debugger from 'debug'
 import { API, HAPStatus, PlatformAccessory } from 'homebridge'
+import Debugger from './debug.js'
 import getOnValue from './getOnValue.js'
 import Lilo from './lilo/Lilo.js'
 import setOnValue from './setOnValue.js'
