@@ -44,12 +44,15 @@ export default class Lilo extends BasePeripheral {
     debug('Getting intensity')
     return this.push(async () => {
       const intensity = await this.getCharacteristic(SERVICE_SETTINGS, CHARACTERISTIC_INTENSITY)
+      debug('Reading intensity')
       const b = await intensity.readAsync()
       if (b.length !== 1) {
         debug('Read illegal intensity from LILO', b)
         return null
       }
-      return b.readInt8()
+      const value = b.readInt8()
+      debug('Read intensity: %d', value)
+      return value
     })
   }
 

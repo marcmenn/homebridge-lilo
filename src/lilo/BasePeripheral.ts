@@ -56,6 +56,7 @@ export default class BasePeripheral extends CommandQueue {
   }
 
   async getCharacteristic(serviceUuid: string, characteristicUuid: string): Promise<Characteristic> {
+    debug('Discovering characteristic %s of service %s', characteristicUuid, serviceUuid)
     const { characteristics } = await this._peripheral.discoverSomeServicesAndCharacteristicsAsync([serviceUuid], [characteristicUuid])
     const characteristic = characteristics.find(({ uuid: id }) => id === characteristicUuid)
     if (!characteristic) throw new Error(`Characteristic ${characteristicUuid} not found`)
