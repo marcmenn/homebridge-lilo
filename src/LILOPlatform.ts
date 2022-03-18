@@ -9,7 +9,7 @@ export default class LILOPlatform implements DynamicPlatformPlugin {
   private accessories: PlatformAccessory[] = []
 
   constructor(log: Logger, config: PlatformConfig, api: API) {
-    setLog(log.debug.bind(log))
+    setLog(log.info.bind(log))
     api.on('didFinishLaunching', () => {
       const shutdown = discover(log, api, this.accessories)
       api.on('shutdown', () => {
