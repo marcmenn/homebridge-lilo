@@ -4,7 +4,7 @@ import getOnValue from './getOnValue.js'
 import Lilo from './lilo/Lilo.js'
 import setOnValue from './setOnValue.js'
 
-const debug = Debugger('LILO')
+const debug = Debugger('connect')
 
 export default (api: API, accessory: PlatformAccessory, lilo: Lilo): void => {
   const {
