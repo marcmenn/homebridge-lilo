@@ -1,4 +1,5 @@
 import Debugger from '../debug.js'
+import promiseWithTimeout from './promiseWithTimeout.js'
 
 const debug = Debugger('CommandQueue')
 
@@ -35,7 +36,7 @@ export default abstract class CommandQueue {
     }
 
     try {
-      return await cmd()
+      return await promiseWithTimeout(60000, cmd, 'Queue command timed out')
     } catch (e) {
       debug('Exception executing command', e)
       throw e
