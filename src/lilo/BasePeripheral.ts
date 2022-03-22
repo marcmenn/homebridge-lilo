@@ -55,7 +55,18 @@ export default class BasePeripheral extends CommandQueue {
     await this._peripheral.disconnectAsync()
   }
 
-  async getCharacteristic(serviceUuid: string, characteristicUuid: string): Promise<Characteristic> {
+  protected async withCharacteristic<V>(
+    serviceUuid: string,
+    characteristicUuid: string,
+    callback: (characteristic: Characteristic) => Promise<V>,
+  ): Promise<V> {
+    return this.push(async () => {
+      const characteristic = await this.getCharacteristic(serviceUuid, characteristicUuid)
+      return callback(characteristic)
+    })
+  }
+
+  protected async getCharacteristic(serviceUuid: string, characteristicUuid: string): Promise<Characteristic> {
     debug('Discovering characteristic %s of service %s', characteristicUuid, serviceUuid)
     const { characteristics } = await this._peripheral.discoverSomeServicesAndCharacteristicsAsync([serviceUuid], [characteristicUuid])
     const characteristic = characteristics.find(({ uuid: id }) => id === characteristicUuid)
@@ -64,16 +75,14 @@ export default class BasePeripheral extends CommandQueue {
   }
 
   async getManufacturerName(): Promise<string> {
-    return this.push(async () => {
-      const name = await this.getCharacteristic(SERVICE_DEVICE_INFORMATION, CHARACTERISTIC_MANUFACTURER_NAME)
+    return this.withCharacteristic(SERVICE_DEVICE_INFORMATION, CHARACTERISTIC_MANUFACTURER_NAME, async (name) => {
       const b = await name.readAsync()
       return b.toString()
     })
   }
 
   async getFirmwareRevision(): Promise<string> {
-    return this.push(async () => {
-      const revision = await this.getCharacteristic(SERVICE_DEVICE_INFORMATION, CHARACTERISTIC_FIRMWARE_REVISION)
+    return this.withCharacteristic(SERVICE_DEVICE_INFORMATION, CHARACTERISTIC_FIRMWARE_REVISION, async (revision) => {
       const b = await revision.readAsync()
       return b.toString()
     })
