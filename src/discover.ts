@@ -1,12 +1,14 @@
 import { API, Logger, PlatformAccessory } from 'homebridge'
-import { Device } from 'node-ble'
+import { Adapter } from 'node-ble'
 import connectAccessory from './connect.js'
-import BasePeripheral from './lilo/BasePeripheral.js'
+import startDiscovery from './lilo/discover.js'
 import Lilo, { ADVERTISEMENT_LOCALNAME } from './lilo/Lilo.js'
 
-export default (log: Logger, api: API, existing: PlatformAccessory[]): () => void => {
-  const onDiscover = async (uuid: string, device: Device) => {
+export default (adapter: Adapter, log: Logger, api: API, existing: PlatformAccessory[]): () => void => {
+  const onDiscover = async (uuid: string) => {
+    let device
     try {
+      device = await adapter.getDevice(uuid)
       const localName = await device.getName()
       if (ADVERTISEMENT_LOCALNAME !== localName) return
     } catch (e) {
@@ -14,7 +16,7 @@ export default (log: Logger, api: API, existing: PlatformAccessory[]): () => voi
     }
     log.debug('Found', uuid)
 
-    const lilo = new Lilo(uuid)
+    const lilo = new Lilo(device)
 
     const uuidAccessory = api.hap.uuid.generate(uuid)
     const oldAccessoryIndex = existing.findIndex((accessory) => accessory.UUID === uuidAccessory)
@@ -31,5 +33,5 @@ export default (log: Logger, api: API, existing: PlatformAccessory[]): () => voi
     connectAccessory(api, accessory, lilo)
     api.registerPlatformAccessories('homebridge-lilo', 'LILO', [accessory])
   }
-  return BasePeripheral.startDiscovery(onDiscover)
+  return startDiscovery(adapter, onDiscover)
 }

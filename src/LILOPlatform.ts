@@ -1,3 +1,4 @@
+import { createBluetooth } from 'node-ble'
 import {
   API, Logger, PlatformAccessory, PlatformConfig,
 } from 'homebridge'
@@ -11,9 +12,12 @@ export default class LILOPlatform implements DynamicPlatformPlugin {
   constructor(log: Logger, config: PlatformConfig, api: API) {
     setLog(log.info.bind(log))
     api.on('didFinishLaunching', () => {
-      const shutdown = discover(log, api, this.accessories)
+      const { bluetooth, destroy } = createBluetooth()
+      const shutdown = bluetooth.defaultAdapter().then((adapter) => discover(adapter, log, api, this.accessories))
       api.on('shutdown', () => {
-        shutdown()
+        shutdown.then((callback) => callback()).finally(() => {
+          destroy()
+        })
       })
     })
   }

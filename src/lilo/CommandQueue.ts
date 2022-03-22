@@ -3,8 +3,6 @@ import promiseWithTimeout from './promiseWithTimeout.js'
 
 const debug = Debugger('CommandQueue')
 
-type Command<V> = () => Promise<V>
-
 export default abstract class CommandQueue {
   private count = 0
 
@@ -28,7 +26,7 @@ export default abstract class CommandQueue {
     }
   }
 
-  private async execute<V1>(prev: Promise<unknown>, cmd: Command<V1>): Promise<V1> {
+  private async execute<V1>(prev: Promise<unknown>, cmd: () => Promise<V1>): Promise<V1> {
     this.count += 1
     await prev
     if (this.count < 0) {
@@ -56,7 +54,7 @@ export default abstract class CommandQueue {
     }
   }
 
-  push<V>(command: Command<V>): Promise<V> {
+  push<V>(command: () => Promise<V>): Promise<V> {
     if (this.count === 0) { // need to start promise chain
       if (this._disconnectTimeoutId === null) {
         debug('Starting queue')

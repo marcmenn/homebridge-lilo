@@ -1,3 +1,4 @@
+import { WriteValueOptions } from 'node-ble'
 import Debugger from '../debug.js'
 import BasePeripheral from './BasePeripheral.js'
 
@@ -19,6 +20,11 @@ const CHARACTERISTIC_INTENSITY = '53e11632-b840-4b21-93ce-081726ddc739'
 
 export type Time = [number, number]
 export type Schedule = [number, number, number, number]
+
+const COMMAND: WriteValueOptions = {
+  offset: 0,
+  type: 'command',
+}
 
 export const formatSchedule = (schedule: Schedule | unknown): string => {
   if (!Array.isArray(schedule)) return 'N/A'
@@ -55,7 +61,7 @@ export default class Lilo extends BasePeripheral {
     await this.withCharacteristic(SERVICE_SETTINGS, CHARACTERISTIC_INTENSITY, async (characteristic) => {
       const b = Buffer.alloc(1)
       b.writeInt8(intensity)
-      await characteristic.writeValue(b)
+      await characteristic.writeValue(b, COMMAND)
       debug(`Set intensity to ${intensity}`)
     })
   }
@@ -82,9 +88,9 @@ export default class Lilo extends BasePeripheral {
         b.writeUInt8(newSchedule[1], 1)
         b.writeUInt8(newSchedule[2], 2)
         b.writeUInt8(newSchedule[3], 3)
-        await schedule.writeValue(b)
+        await schedule.writeValue(b, COMMAND)
       } else {
-        await schedule.writeValue(SCHEDULE_EMPTY)
+        await schedule.writeValue(SCHEDULE_EMPTY, COMMAND)
       }
       debug(`Set schedule to ${formatSchedule(newSchedule)}`)
     })
@@ -111,7 +117,7 @@ export default class Lilo extends BasePeripheral {
       const b = Buffer.alloc(2)
       b.writeUInt8(time[0], 0)
       b.writeUInt8(time[1], 1)
-      await clock.writeValue(b)
+      await clock.writeValue(b, COMMAND)
       debug(`Set clock to ${formatTime(time)}`)
     })
   }
