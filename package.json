@@ -1,6 +1,6 @@
 {
   "name": "homebridge-lilo",
-  "version": "0.0.45",
+  "version": "0.0.46",
   "description": "Turn LILO Home Gardens into simple homebridge switches",
   "main": "lib/index.js",
   "type": "module",
