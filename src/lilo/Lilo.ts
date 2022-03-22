@@ -1,4 +1,3 @@
-import { Peripheral } from '@abandonware/noble'
 import Debugger from '../debug.js'
 import BasePeripheral from './BasePeripheral.js'
 
@@ -11,12 +10,12 @@ export const INTENSITY_SCHEDULED = 3
 const CLOCK_INITIAL = Buffer.of(0x94)
 const SCHEDULE_EMPTY = Buffer.of(0)
 
-const SERVICE_CLOCK = '53e12188b8404b2193ce081726ddc739'
-const CHARACTERISTIC_CLOCK = '53e12189b8404b2193ce081726ddc739'
+const SERVICE_CLOCK = '53e12188-b840-4b21-93ce-081726ddc739'
+const CHARACTERISTIC_CLOCK = '53e12189-b840-4b21-93ce-081726ddc739'
 
-const SERVICE_SETTINGS = '53e11631b8404b2193ce081726ddc739'
-const CHARACTERISTIC_SCHEDULE = '53e11633b8404b2193ce081726ddc739'
-const CHARACTERISTIC_INTENSITY = '53e11632b8404b2193ce081726ddc739'
+const SERVICE_SETTINGS = '53e11631-b840-4b21-93ce-081726ddc739'
+const CHARACTERISTIC_SCHEDULE = '53e11633-b840-4b21-93ce-081726ddc739'
+const CHARACTERISTIC_INTENSITY = '53e11632-b840-4b21-93ce-081726ddc739'
 
 export type Time = [number, number]
 export type Schedule = [number, number, number, number]
@@ -33,18 +32,14 @@ export const formatTime = (time: Time | unknown): string => {
   return `${h}:${m}`
 }
 
-const ADVERTISEMENT_LOCALNAME = 'LILO'
+export const ADVERTISEMENT_LOCALNAME = 'LILO'
 
 export default class Lilo extends BasePeripheral {
-  static is(peripheral: Peripheral): boolean {
-    return peripheral.advertisement.localName === ADVERTISEMENT_LOCALNAME
-  }
-
   async getIntensity(): Promise<number | null | undefined> {
     debug('Getting intensity')
     return this.withCharacteristic(SERVICE_SETTINGS, CHARACTERISTIC_INTENSITY, async (intensity) => {
       debug('Reading intensity')
-      const b = await intensity.readAsync()
+      const b = await intensity.readValue()
       if (b.length !== 1) {
         debug('Read illegal intensity from LILO', b)
         return null
@@ -60,7 +55,7 @@ export default class Lilo extends BasePeripheral {
     await this.withCharacteristic(SERVICE_SETTINGS, CHARACTERISTIC_INTENSITY, async (characteristic) => {
       const b = Buffer.alloc(1)
       b.writeInt8(intensity)
-      await characteristic.writeAsync(b, true)
+      await characteristic.writeValue(b)
       debug(`Set intensity to ${intensity}`)
     })
   }
@@ -68,7 +63,7 @@ export default class Lilo extends BasePeripheral {
   async getSchedule(): Promise<Schedule | null | undefined> {
     debug('Getting schedule')
     return this.withCharacteristic(SERVICE_SETTINGS, CHARACTERISTIC_SCHEDULE, async (schedule) => {
-      const b = await schedule.readAsync()
+      const b = await schedule.readValue()
       if (Buffer.compare(SCHEDULE_EMPTY, b) === 0) return null
       if (b.length !== 4) {
         debug('Read illegal schedule from LILO', b)
@@ -87,9 +82,9 @@ export default class Lilo extends BasePeripheral {
         b.writeUInt8(newSchedule[1], 1)
         b.writeUInt8(newSchedule[2], 2)
         b.writeUInt8(newSchedule[3], 3)
-        await schedule.writeAsync(b, true)
+        await schedule.writeValue(b)
       } else {
-        await schedule.writeAsync(SCHEDULE_EMPTY, true)
+        await schedule.writeValue(SCHEDULE_EMPTY)
       }
       debug(`Set schedule to ${formatSchedule(newSchedule)}`)
     })
@@ -98,7 +93,7 @@ export default class Lilo extends BasePeripheral {
   async getTime(): Promise<Time | null | undefined> {
     debug('Getting clock time')
     return this.withCharacteristic(SERVICE_CLOCK, CHARACTERISTIC_CLOCK, async (clock) => {
-      const b = await clock.readAsync()
+      const b = await clock.readValue()
       if (Buffer.compare(CLOCK_INITIAL, b) === 0) return null
       if (b.length !== 2) {
         debug('Read illegal clock from LILO', b)
@@ -116,7 +111,7 @@ export default class Lilo extends BasePeripheral {
       const b = Buffer.alloc(2)
       b.writeUInt8(time[0], 0)
       b.writeUInt8(time[1], 1)
-      await clock.writeAsync(b, true)
+      await clock.writeValue(b)
       debug(`Set clock to ${formatTime(time)}`)
     })
   }

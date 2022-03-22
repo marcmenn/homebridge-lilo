@@ -1,64 +1,109 @@
-import noble, { Characteristic, Peripheral } from '@abandonware/noble'
+import NodeBle, { createBluetooth, Device, GattCharacteristic } from 'node-ble'
 import Debugger from '../debug.js'
 import CommandQueue from './CommandQueue.js'
-import connect from './connect.js'
 
 const debug = Debugger('BasePeripheral')
 
-const SERVICE_DEVICE_INFORMATION = '180a'
-const CHARACTERISTIC_FIRMWARE_REVISION = '2a26'
-const CHARACTERISTIC_MANUFACTURER_NAME = '2a29'
+const SERVICE_DEVICE_INFORMATION = '0000180a-0000-1000-8000-00805f9b34fb'
+const CHARACTERISTIC_FIRMWARE_REVISION = '00002a26-0000-1000-8000-00805f9b34fb'
+const CHARACTERISTIC_MANUFACTURER_NAME = '00002a29-0000-1000-8000-00805f9b34fb'
 
 const DISCONNECT_TIMEOUT = 30 * 1000
 
 export default class BasePeripheral extends CommandQueue {
-  static startDiscovery(onDiscover: (peripheral: Peripheral) => void): () => Promise<void> {
-    const onStateChange = (state: string) => {
-      debug('BLE state change to %s', state)
-      if (state === 'poweredOn') {
-        debug('Initiating scan')
-        noble.startScanning([], false, (error) => {
-          if (error) {
-            debug('Error initiating scan: %s', error)
-          }
-        })
+  static startDiscovery(onDiscover: (uuid: string, device: Device) => Promise<void>): () => void {
+    const { bluetooth, destroy } = createBluetooth()
+    let adapter: NodeBle.Adapter | null = null
+
+    const knownUuids = new Set<string>()
+    let counter = 60
+
+    const runOnDiscover = async (uuid: string): Promise<void> => {
+      if (knownUuids.has(uuid) || !adapter) return
+
+      knownUuids.add(uuid)
+      const device = await adapter.getDevice(uuid)
+      await onDiscover(uuid, device)
+    }
+
+    const discoverer = async () => {
+      if (!adapter) {
+        adapter = await bluetooth.defaultAdapter()
+        if (!await adapter.isDiscovering()) await adapter.startDiscovery()
       }
+      const uuids = await adapter.devices()
+      await Promise.all(uuids.map(runOnDiscover))
     }
 
-    noble.on('discover', onDiscover)
-    noble.on('stateChange', onStateChange)
-    onStateChange(noble.state)
-
-    return async () => {
-      debug('stop scanning')
-      noble.removeListener('stateChange', onStateChange)
-      noble.removeListener('discover', onDiscover)
-      await noble.stopScanningAsync()
+    const stopScanning = () => {
+      counter = 0
     }
+
+    const timeout = () => {
+      if (counter <= 0) {
+        debug('stop scanning')
+        const a = adapter
+        adapter = null
+        if (a) {
+          a.isDiscovering().then((bool) => (bool ? a.stopDiscovery() : null)).catch((e) => {
+            debug('Error stop scanning: ', e)
+          }).finally(() => {
+            destroy()
+          })
+        }
+        return
+      }
+      counter -= 1
+      discoverer().then(() => {
+        if (counter >= 0) {
+          setTimeout(timeout, 1000)
+        }
+      })
+    }
+
+    timeout()
+
+    return stopScanning
   }
 
-  private readonly _peripheral: Peripheral
+  private uuid: string
 
-  constructor(peripheral: Peripheral) {
+  private device?: Device
+
+  private destroy?: () => void
+
+  constructor(uuid: string) {
     super()
     this._timeout = DISCONNECT_TIMEOUT
-    this._peripheral = peripheral
+    this.uuid = uuid
   }
 
   protected async start(): Promise<void> {
-    await connect(this._peripheral, this._peripheral.id)
+    const { bluetooth, destroy } = createBluetooth()
+    this.destroy = destroy
+    const adapter = await bluetooth.defaultAdapter()
+    const device = await adapter.waitDevice(this.uuid)
+    if (!await device.isConnected()) {
+      await device.connect()
+    }
+    this.device = device
   }
 
   protected async stop(): Promise<void> {
-    if (this._peripheral.state === 'disconnected' || this._peripheral.state === 'disconnecting') return
-    debug('disconnecting from %s', this._peripheral.id)
-    await this._peripheral.disconnectAsync()
+    const { destroy, device } = this
+    this.destroy = undefined
+    this.device = undefined
+    if (device && await device.isConnected()) {
+      debug('disconnecting from %s', this.uuid)
+      await device.disconnect()
+    }
+    if (destroy) destroy()
   }
 
   protected async withCharacteristic<V>(
     serviceUuid: string,
     characteristicUuid: string,
-    callback: (characteristic: Characteristic) => Promise<V>,
+    callback: (characteristic: GattCharacteristic) => Promise<V>,
   ): Promise<V> {
     return this.push(async () => {
       const characteristic = await this.getCharacteristic(serviceUuid, characteristicUuid)
@@ -66,24 +111,27 @@ export default class BasePeripheral extends CommandQueue {
     })
   }
 
-  protected async getCharacteristic(serviceUuid: string, characteristicUuid: string): Promise<Characteristic> {
+  protected async getCharacteristic(serviceUuid: string, characteristicUuid: string): Promise<GattCharacteristic> {
     debug('Discovering characteristic %s of service %s', characteristicUuid, serviceUuid)
-    const { characteristics } = await this._peripheral.discoverSomeServicesAndCharacteristicsAsync([serviceUuid], [characteristicUuid])
-    const characteristic = characteristics.find(({ uuid: id }) => id === characteristicUuid)
+    const { device } = this
+    if (!device) throw new Error('Not connected')
+    const gattServer = await device.gatt()
+    const service = await gattServer.getPrimaryService(serviceUuid)
+    const characteristic = await service.getCharacteristic(characteristicUuid)
     if (!characteristic) throw new Error(`Characteristic ${characteristicUuid} not found`)
     return characteristic
   }
 
   async getManufacturerName(): Promise<string> {
     return this.withCharacteristic(SERVICE_DEVICE_INFORMATION, CHARACTERISTIC_MANUFACTURER_NAME, async (name) => {
-      const b = await name.readAsync()
+      const b = await name.readValue()
       return b.toString()
     })
   }
 
   async getFirmwareRevision(): Promise<string> {
     return this.withCharacteristic(SERVICE_DEVICE_INFORMATION, CHARACTERISTIC_FIRMWARE_REVISION, async (revision) => {
-      const b = await revision.readAsync()
+      const b = await revision.readValue()
       return b.toString()
     })
   }

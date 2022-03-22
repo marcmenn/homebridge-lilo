@@ -21,8 +21,8 @@
   "author": "Marcus Mennemeier",
   "license": "ISC",
   "dependencies": {
-    "@abandonware/noble": "^1.9.2-13",
-    "debug": "^4.3.3"
+    "debug": "^4.3.3",
+    "node-ble": "^1.7.0"
   },
   "devDependencies": {
     "@tsconfig/node16": "^1.0.0",

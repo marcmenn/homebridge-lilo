@@ -13,9 +13,7 @@ export default class LILOPlatform implements DynamicPlatformPlugin {
     api.on('didFinishLaunching', () => {
       const shutdown = discover(log, api, this.accessories)
       api.on('shutdown', () => {
-        shutdown().catch((e) => {
-          log.warn(e)
-        })
+        shutdown()
       })
     })
   }
