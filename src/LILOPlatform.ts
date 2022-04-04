@@ -69,8 +69,9 @@ export default class LILOPlatform implements DynamicPlatformPlugin {
       this.getLilo(accessory)
         .then((lilo) => setOnValue(lilo, Boolean(value)))
         .catch((e) => {
-          this.log.warn('Exception setting OnValue', e)
+          this.log.warn('Exception setting OnValue, disconnecting bluetooth', e)
           onCharacteristic.updateValue(new HapStatusError(HAPStatus.SERVICE_COMMUNICATION_FAILURE))
+          this.stopBluetooth()
         })
     })
 
