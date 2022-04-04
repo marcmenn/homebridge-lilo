@@ -16,13 +16,13 @@ export default abstract class CommandQueue {
 
   protected abstract stop(): Promise<void>
 
-  close(): void {
+  async close(): Promise<void> {
     if (this.count >= 0) {
-      this._promise.finally(async () => {
+      this.count = -1
+      await this._promise.finally(async () => {
         debug('Closing queue')
         await this.stop()
       })
-      this.count = -1
     }
   }
 

@@ -11,26 +11,28 @@ const CHARACTERISTIC_MANUFACTURER_NAME = '00002a29-0000-1000-8000-00805f9b34fb'
 const DISCONNECT_TIMEOUT = 30 * 1000
 
 export default class BasePeripheral extends CommandQueue {
-  private readonly device: Device
+  private readonly getDevice: () => Promise<Device>
 
   private readonly cache = new Map<string, Promise<GattCharacteristic>>()
 
-  constructor(device: Device) {
+  constructor(getDevice: () => Promise<Device>) {
     super()
-    this.device = device
+    this.getDevice = getDevice
     this._timeout = DISCONNECT_TIMEOUT
   }
 
   protected async start(): Promise<void> {
-    if (!await this.device.isConnected()) {
-      await this.device.connect()
+    const device = await this.getDevice()
+    if (!await device.isConnected()) {
+      await device.connect()
     }
   }
 
   protected async stop(): Promise<void> {
-    if (await this.device.isConnected()) {
-      debug('disconnecting from %s', await this.device.toString())
-      await this.device.disconnect()
+    const device = await this.getDevice()
+    if (await device.isConnected()) {
+      debug('disconnecting from %s', await device.toString())
+      await device.disconnect()
     }
   }
 
@@ -52,7 +54,7 @@ export default class BasePeripheral extends CommandQueue {
 
   private async getCharacteristic(serviceUuid: string, characteristicUuid: string): Promise<GattCharacteristic> {
     debug('Discovering characteristic %s of service %s', characteristicUuid, serviceUuid)
-    const { device } = this
+    const device = await this.getDevice()
     if (!device) throw new Error('Not connected')
     const gattServer = await device.gatt()
     const service = await gattServer.getPrimaryService(serviceUuid)

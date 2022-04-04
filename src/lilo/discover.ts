@@ -1,17 +1,20 @@
 import { Adapter } from 'node-ble'
+import { clearTimeout } from 'timers'
 import Debugger from '../debug.js'
 
 const debug = Debugger('discover')
 
-const startDiscovery = (adapter: Adapter, onDiscover: (uuid: string) => Promise<void>): () => void => {
+const startDiscovery = (adapter: Adapter, onDiscover: (uuid: string, adapter: Adapter) => Promise<void>): () => Promise<void> => {
   const knownUuids = new Set<string>()
   let stop = false
+  let activePromise = Promise.resolve()
+  let activeTimeout: NodeJS.Timeout | null = null
 
   const runOnDiscover = async (uuid: string): Promise<void> => {
     if (knownUuids.has(uuid) || !adapter) return
 
     knownUuids.add(uuid)
-    await onDiscover(uuid)
+    await onDiscover(uuid, adapter)
   }
 
   const discoverer = async () => {
@@ -21,12 +24,15 @@ const startDiscovery = (adapter: Adapter, onDiscover: (uuid: string) => Promise<
   }
 
   const timeout = () => {
+    activeTimeout = null
     if (stop) {
       debug('stop scanning')
       return
     }
-    discoverer().then(() => {
-      setTimeout(timeout, 1000)
+    activePromise = discoverer().then(() => {
+      if (!stop) {
+        activeTimeout = setTimeout(timeout, 1000)
+      }
     }).catch((e) => {
       debug('Error discovering', e)
     })
@@ -34,8 +40,10 @@ const startDiscovery = (adapter: Adapter, onDiscover: (uuid: string) => Promise<
 
   timeout()
 
-  return () => {
+  return async () => {
     stop = true
+    if (activeTimeout) clearTimeout(activeTimeout)
+    return activePromise.finally()
   }
 }
 
